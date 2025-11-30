@@ -2,6 +2,7 @@ using Symbolics
 using LinearAlgebra: tr
 using PolynomialRoots
 using Plots
+import AMRVW
 
 function potts(n)
     @variables x
@@ -36,13 +37,27 @@ function potts(n)
         T₁[i, j] = x^q
     end
 
+    # configs = Iterators.product(Iterators.repeated((false, true), n^2)...)
+    # real_partition = 0
+    # for config ∈ configs
+    #     p = 0
+    #     config = reshape(collect(config), n, n)
+    #     for i ∈ 1:n, j ∈ 1:n
+    #         p += Int(config[i, j] == config[mod1(i + 1, n), j])
+    #         p += Int(config[i, j] == config[i, mod1(j + 1, n)])
+    #     end
+    #     real_partition += x^p
+    # end
+    # println(real_partition)
+
     # println(sum(T₀))
     # display(T₀)
 
-    partition = expand(tr(T₀^(n - 2) * T₁))
-    println(partition)
+    partition = expand(tr(T₀^n))
+    # println(partition)
+    # partition = real_partition
     partition = Symbolics.coeff.(partition, x .^ collect(0:Symbolics.degree(partition)))
 
-    partition_roots = roots(partition)
+    partition_roots = AMRVW.roots(float.(partition))
     display(scatter(partition_roots))
 end
