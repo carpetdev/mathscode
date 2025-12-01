@@ -1,7 +1,9 @@
 using Polynomials
-using LinearAlgebra: tr
-using PolynomialRoots
 using Plots
+using LinearAlgebra: tr
+
+# Alternative root finders
+import PolynomialRoots
 import AMRVW
 
 # struct TransferMatrix <: AbstractMatrix{Tuple{Int}}
@@ -63,10 +65,10 @@ function potts(n)
     # println(sum(T₀))
     # display(T₀)
 
-    partition = expand(tr(T₀^n))
+    partition = tr(T₀^n)
     println(partition)
     # partition = real_partition
     # println(log(2, sum(partition)))
-    # partition_roots = AMRVW.roots(float.(partition))
-    # display(scatter(partition_roots, aspect_ratio=:equal))
+    partition_roots = roots(partition)
+    display(scatter(partition_roots, aspect_ratio=:equal))
 end
