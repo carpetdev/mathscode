@@ -1,15 +1,25 @@
-using Symbolics
+using Polynomials
 using LinearAlgebra: tr
 using PolynomialRoots
 using Plots
 import AMRVW
 
-function potts(n)
-    @variables x
+# struct TransferMatrix <: AbstractMatrix{Tuple{Int}}
+#     matrix::Matrix{Tuple{Int}}
 
+#     Base.zero(::Type{Tuple{Int}}) = (0,)
+
+#     function TransferMatrix(n::Int)
+#         new(zeros(Tuple{Int}, n, n))
+#     end
+
+#     Base.size(T::TransferMatrix) = 2
+# end
+
+function potts(n)
     Ω = Iterators.product(Iterators.repeated((false, true), n)...)
-    T₀ = zeros(typeof(x), 2^n, 2^n)
-    T₁ = zeros(typeof(x), 2^n, 2^n)
+    T₀ = zeros(Polynomial{Int,:x}, 2^n, 2^n)
+    # T₁ = zeros(typeof(x), 2^n, 2^n)
 
     for (i, Ωᵢ) ∈ zip(1:2^n, Ω),
         (j, Ωₒ) ∈ zip(1:2^n, Ω)
@@ -18,12 +28,12 @@ function potts(n)
         # println(Ωₒ)
 
         p = 0
-        q = 0 # amelia
+        q = 0
 
         for r ∈ 1:n
             p += Int(Ωᵢ[r] == Ωₒ[r])
             p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
-            q += Int(Ωₒ[r] == Ωₒ[mod1(r + 1, n)])
+            # q += Int(Ωₒ[r] == Ωₒ[mod1(r + 1, n)])
             # if r != n
             #     p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
             #     p += Int(Ωₒ[r] == Ωₒ[mod1(r + 1, n)])
@@ -31,10 +41,10 @@ function potts(n)
         end
 
         # println(p)
-        q += p
+        # q += p
 
-        T₀[i, j] = x^p
-        T₁[i, j] = x^q
+        T₀[i, j] = Polynomial(1, p)
+        # T₁[i, j] = x^q
     end
 
     # configs = Iterators.product(Iterators.repeated((false, true), n^2)...)
@@ -54,10 +64,9 @@ function potts(n)
     # display(T₀)
 
     partition = expand(tr(T₀^n))
-    # println(partition)
+    println(partition)
     # partition = real_partition
-    partition = Symbolics.coeff.(partition, x .^ collect(0:Symbolics.degree(partition)))
-
-    partition_roots = AMRVW.roots(float.(partition))
-    display(scatter(partition_roots))
+    # println(log(2, sum(partition)))
+    # partition_roots = AMRVW.roots(float.(partition))
+    # display(scatter(partition_roots, aspect_ratio=:equal))
 end
