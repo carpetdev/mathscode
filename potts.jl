@@ -1,12 +1,13 @@
 using Polynomials
 using Plots
 using LinearAlgebra: tr
+using Serialization
 
 # Alternative root finders
 import PolynomialRoots
 import AMRVW
 
-default(aspect_ratio=:equal)
+default(aspect_ratio=:equal, markersize=3, legend=false)
 
 # struct TransferMatrix <: AbstractMatrix{Tuple{Int}}
 #     matrix::Matrix{Tuple{Int}}
@@ -78,13 +79,14 @@ function potts(n)
 end
 
 function bairstow(P::Polynomial)
-    roots = Vector{ComplexF64}()
+    P₀ = P
+    preroots = Vector{ComplexF64}()
     while (n = degree(P)) > 1
         # println("Poly ", P)
-        u::BigFloat = P[n-1] != 0 ? P[n-1] / P[n] : 1 / P[n]
-        v::BigFloat = P[n-2] != 0 ? P[n-2] / P[n] : 1 / P[n]
+        u = P[n-1] != 0 ? P[n-1] / P[n] : 1 / P[n]
+        v = P[n-2] != 0 ? P[n-2] / P[n] : 1 / P[n]
         step = [Inf, Inf]
-        while sum(abs2, step) > 0.00001
+        while sum(abs2, step) > 1e-16
             # println("NR ", u, ' ', v)
             b = Vector(undef, n + 1)
             b[begin+n] = b[begin+n-1] = 0
@@ -102,7 +104,10 @@ function bairstow(P::Polynomial)
             u, v = [u, v] - step
         end
         b = Polynomial([v, u, 1])
-        append!(roots, AMRVW.roots(coeffs(b)))
+        r = Polynomials.roots(b)
+        if !isempty(r)
+            push!(preroots, r[1])
+        end
         a = P
         Q = 0
         while (m = degree(a)) > 1
@@ -113,9 +118,43 @@ function bairstow(P::Polynomial)
             a -= q * b
             chop!(a)
         end
-        # println("Euclid error ", a)
+        println("Euclid error ", a)
         P = Q
     end
-    append!(roots, AMRVW.roots(coeffs(P)))
-    return roots
+    r = Polynomials.roots(P)
+    if !isempty(r)
+        push!(preroots, r[1])
+    end
+
+    roots = Vector{ComplexF64}()
+    colours = Vector{Symbol}()
+    for root in preroots
+        root = NewtonRaphson(P₀, derivative(P₀), root)
+        error = P₀(root)
+        if abs(root) < 0.1
+            # println(root)
+        end
+        if abs(error) > 1e-10
+            # println(error)
+            push!(colours, :red, :red)
+        else
+            push!(colours, :black, :black)
+        end
+        push!(roots, root, conj(root))
+    end
+    scatter(roots, seriescolor=colours)
 end
+
+function NewtonRaphson(f, f′, x, tol=1e-30, maxIter=1e5)
+    x = Complex{BigFloat}(x)
+    fx = f(x)
+    iter = 0
+    while abs(fx) > tol && iter < maxIter
+        x -= fx / f′(x)
+        fx = f(x)
+        iter += 1
+    end
+    return x
+end
+
+const parts = deserialize("potts.dat")
