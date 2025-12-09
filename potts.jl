@@ -2,12 +2,16 @@ using Polynomials
 using Plots
 using LinearAlgebra: tr
 using Serialization
+using ProgressLogging
+using Random
 
 # Alternative root finders
 import PolynomialRoots
 import AMRVW
 
 default(aspect_ratio=:equal, markersize=3, legend=false)
+
+const parts = deserialize("potts.dat")
 
 # struct TransferMatrix <: AbstractMatrix{Tuple{Int}}
 #     matrix::Matrix{Tuple{Int}}
@@ -83,10 +87,10 @@ function bairstow(P::Polynomial)
     preroots = Vector{ComplexF64}()
     while (n = degree(P)) > 1
         # println("Poly ", P)
-        u = P[n-1] != 0 ? P[n-1] / P[n] : 1 / P[n]
-        v = P[n-2] != 0 ? P[n-2] / P[n] : 1 / P[n]
+        u::BigFloat = P[n-1] != 0 ? P[n-1] / P[n] : 1 / P[n]
+        v::BigFloat = P[n-2] != 0 ? P[n-2] / P[n] : 1 / P[n]
         step = [Inf, Inf]
-        while sum(abs2, step) > 1e-16
+        while sum(abs2, step) > 1e-25
             # println("NR ", u, ' ', v)
             b = Vector(undef, n + 1)
             b[begin+n] = b[begin+n-1] = 0
@@ -103,15 +107,17 @@ function bairstow(P::Polynomial)
             step = 1 / (v * g^2 + h * (h - u * g)) * [-h g; -g*v g*u-h] * [c, d]
             u, v = [u, v] - step
         end
-        b = Polynomial([v, u, 1])
-        r = Polynomials.roots(b)
-        if !isempty(r)
-            push!(preroots, r[1])
-        end
-        a = P
+        root = quadraticroot(Polynomial([v, u, 1]))
+        # root = newtonraphson(P₀, derivative(P₀), root)
+        push!(preroots, root)
+        a = P₀
+        b = fromroots(preroots)
+        b *= conj(b)
+        @show b
         Q = 0
-        while (m = degree(a)) > 1
-            q = Polynomial(a[m], m - 2)
+        while degree(a) >= degree(b)
+            @show degree(a)
+            q = Polynomial(a[degree(a)], degree(a) - degree(b))
             # println(m, ' ', degree(a))
             # println("Euclid progress ", a, ' ', q)
             Q += q
@@ -119,8 +125,16 @@ function bairstow(P::Polynomial)
             chop!(a)
         end
         println("Euclid error ", a)
+        @show Q
         P = Q
+        for i in 0:degree(P)
+            if imag(P[i]) > 0.1
+                println("HERE", imag(P[i]))
+            end
+            P[i] = real(P[i])
+        end
     end
+    println("Final Poly: ", P)
     r = Polynomials.roots(P)
     if !isempty(r)
         push!(preroots, r[1])
@@ -129,10 +143,10 @@ function bairstow(P::Polynomial)
     roots = Vector{ComplexF64}()
     colours = Vector{Symbol}()
     for root in preroots
-        root = NewtonRaphson(P₀, derivative(P₀), root)
+        # root = newtonraphson(P₀, derivative(P₀), root)
         error = P₀(root)
         if abs(root) < 0.1
-            # println(root)
+            println(root)
         end
         if abs(error) > 1e-10
             # println(error)
@@ -142,11 +156,14 @@ function bairstow(P::Polynomial)
         end
         push!(roots, root, conj(root))
     end
-    scatter(roots, seriescolor=colours)
+    @show degree(P₀) length(roots) length(unique(roots))
+
+    display(scatter(roots, seriescolor=colours))
+    return roots
 end
 
-function NewtonRaphson(f, f′, x, tol=1e-30, maxIter=1e5)
-    x = Complex{BigFloat}(x)
+function newtonraphson(f, f′, initial, tol=1e-16, maxIter=1e5)
+    x = Complex{BigFloat}(initial)
     fx = f(x)
     iter = 0
     while abs(fx) > tol && iter < maxIter
@@ -157,4 +174,62 @@ function NewtonRaphson(f, f′, x, tol=1e-30, maxIter=1e5)
     return x
 end
 
-const parts = deserialize("potts.dat")
+function quadraticroot(P::Polynomial)
+    a, b, c = P[2], P[1], P[0]
+    return -b / 2a + √Complex((b / 2a)^2 - c / a)
+end
+
+function sub(P::Polynomial, s::Number)
+    P = convert(Polynomial{typeof(s)}, copy(P))
+    for i in 0:degree(P)
+        P[i] *= s^i
+    end
+    return P
+end
+
+function hubbard(P::Polynomial, ε=1e-10)
+    roots = Vector{Complex{Float64}}()
+    haszeroroot = false
+    if P[0] == 0
+        P = Polynomial(P[findfirst(!isequal(0), P):end])
+        push!(roots, 0)
+        haszeroroot = true
+    end
+    d = degree(P)
+    s = ceil(Int, 0.26632log(d))
+    N = ceil(Int, 8.32547d * log(d))
+    @show d s N
+    R = 1 + maximum(abs(P[i]) / abs(P[d]) for i in 0:d-1)
+    S = (big(R * (1 + √2) * ((d - 1) / d)^((2v - 1) / 4s) * exp(im * 2π * j / N)) for v in 1:s, j in 0:N-1)
+    P′ = derivative(P)
+    K = ceil(Int, d * log(R / ε))
+    @progress for point in shuffle(collect(S))
+        if length(roots) == d + Int(haszeroroot)
+            break
+        end
+        hasconverged = false
+        for _ in 1:K
+            update = P(point) / P′(point)
+            point -= update
+            if abs(update) < ε / d
+                hasconverged = true
+                break
+            end
+        end
+        if hasconverged
+            isnewroot = true
+            for root in roots
+                if abs(root - point) < ε
+                    isnewroot = false
+                    break
+                end
+            end
+            if isnewroot
+                push!(roots, point, conj(point))
+                @show point
+            end
+        end
+    end
+    display(scatter(roots))
+    return roots
+end
