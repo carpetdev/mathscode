@@ -4,6 +4,8 @@ using LinearAlgebra: tr
 using Serialization
 using ProgressLogging
 using Random
+using Attractors
+using CairoMakie
 
 # Alternative root finders
 import PolynomialRoots
@@ -11,7 +13,7 @@ import AMRVW
 
 default(aspect_ratio=:equal, markersize=3, legend=false)
 
-const parts = deserialize("potts.dat")
+const parts = deserialize("parts.dat")
 
 # struct TransferMatrix <: AbstractMatrix{Tuple{Int}}
 #     matrix::Matrix{Tuple{Int}}
@@ -162,7 +164,7 @@ function bairstow(P::Polynomial)
     return roots
 end
 
-function newtonraphson(f, f′, initial, tol=1e-16, maxIter=1e5)
+function newtonraphson(f, f′, initial; tol=1e-16, maxIter=1e5)
     x = Complex{BigFloat}(initial)
     fx = f(x)
     iter = 0
@@ -187,8 +189,12 @@ function sub(P::Polynomial, s::Number)
     return P
 end
 
-function hubbard(P::Polynomial, ε=1e-10)
-    roots = Vector{Complex{Float64}}()
+function hubbard(P::Polynomial; ε=1e-10, R=3, rootcount=degree(P))
+    roots = Vector{Complex{BigFloat}}()
+    debug_roots = []
+    nonconv = Vector{Complex{BigFloat}}()
+    debug_nonconv = []
+    debug_dupe = []
     haszeroroot = false
     if P[0] == 0
         P = Polynomial(P[findfirst(!isequal(0), P):end])
@@ -199,14 +205,30 @@ function hubbard(P::Polynomial, ε=1e-10)
     s = ceil(Int, 0.26632log(d))
     N = ceil(Int, 8.32547d * log(d))
     @show d s N
-    R = 1 + maximum(abs(P[i]) / abs(P[d]) for i in 0:d-1)
-    S = (big(R * (1 + √2) * ((d - 1) / d)^((2v - 1) / 4s) * exp(im * 2π * j / N)) for v in 1:s, j in 0:N-1)
+    # R = 1 + maximum(abs(P[i]) / abs(P[d]) for i in 0:d-1)
+
+    # max_N′ = N ÷ 2 + 1 # Just upper half plane - consider other symmetries
+    max_N′ = N
+    N′ = zeros(Int, max_N′) # More interesting enumeration of N
+    i = 1
+    for r in 0:d-1, q in 0:(max_N′-1-r)÷d
+        N′[i] = q * d + r
+        i += 1
+    end
+
+    S = (R * (1 + √(big(2))) * (big(d - 1) / d)^(big(2v - 1) / 4s) * exp(im * big(π) * big(2j - v % 2) / N) for j in N′, v in 1:s, R in [0.8, 3])
     P′ = derivative(P)
     K = ceil(Int, d * log(R / ε))
-    @progress for point in shuffle(collect(S))
-        if length(roots) == d + Int(haszeroroot)
+    # K = 10_000
+    @show K
+    @progress for point in S
+        if length(roots) >= rootcount
+            return roots
+        end
+        if length(roots) >= d + Int(haszeroroot) # Is Z square-free?
             break
         end
+        point₀ = point
         hasconverged = false
         for _ in 1:K
             update = P(point) / P′(point)
@@ -226,10 +248,42 @@ function hubbard(P::Polynomial, ε=1e-10)
             end
             if isnewroot
                 push!(roots, point, conj(point))
-                @show point
+                push!(debug_roots, Dict(:initial => point₀, :final => point))
+
+                @show point ComplexF64(P(point)) length(roots)
+            else
+                push!(debug_dupe, Dict(:initial => point₀, :final => point))
             end
+        else
+            push!(nonconv, point)
+            push!(debug_nonconv, Dict(:initial => point₀, :final => point))
         end
     end
     display(scatter(roots))
-    return roots
+    @show d length(roots) + length(nonconv)
+    @show length(debug_dupe)
+    serialize("debug_roots.dat", debug_roots)
+    serialize("debug_dupe.dat", debug_dupe)
+    serialize("debug_nonconv.dat", debug_nonconv)
+    return roots, nonconv, debug_roots, debug_dupe, debug_nonconv
 end
+
+function newton_map(z, p, n)
+    z1 = z[1] + im * z[2]
+    dz1 = newton_f(z1, p[1]) / newton_df(z1, p[1])
+    z1 = z1 - dz1
+    return SVector(real(z1), imag(z1))
+end
+part = copy(parts[6])
+newton_f(x, p) = part(x)
+newton_df(x, p) = derivative(part)(x)
+
+ds = DiscreteDynamicalSystem(newton_map, [0.1, 0.2], [3.0])
+xg = yg = range(-2.5, 2.5; length=400)
+grid = (xg, yg)
+# Use non-sparse for using `basins_of_attraction`
+mapper_newton = AttractorsViaRecurrences(ds, grid;
+    sparse=false, consecutive_lost_steps=1000
+)
+basins, attractors = basins_of_attraction(mapper_newton; show_progress=false)
+heatmap_basins_attractors(grid, basins, attractors; markers=Dict(i => :circle for i in 1:length(attractors)))
