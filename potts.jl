@@ -160,7 +160,7 @@ function bairstow(P::Polynomial)
     end
     @show degree(P₀) length(roots) length(unique(roots))
 
-    display(scatter(roots, seriescolor=colours))
+    display(Plots.scatter(roots, seriescolor=colours))
     return roots
 end
 
@@ -216,7 +216,7 @@ function hubbard(P::Polynomial; ε=1e-10, R=3, rootcount=degree(P))
         i += 1
     end
 
-    S = (R * (1 + √(big(2))) * (big(d - 1) / d)^(big(2v - 1) / 4s) * exp(im * big(π) * big(2j - v % 2) / N) for j in N′, v in 1:s, R in [0.8, 3])
+    S = (R * (1 + √(big(2))) * (big(d - 1) / d)^(big(2v - 1) / 4s) * exp(im * big(π) * big(2j - v % 2) / N) for j in N′, v in 1:s, R in [3, 0.8])
     P′ = derivative(P)
     K = ceil(Int, d * log(R / ε))
     # K = 10_000
@@ -259,7 +259,7 @@ function hubbard(P::Polynomial; ε=1e-10, R=3, rootcount=degree(P))
             push!(debug_nonconv, Dict(:initial => point₀, :final => point))
         end
     end
-    display(scatter(roots))
+    display(Plots.scatter(roots))
     @show d length(roots) + length(nonconv)
     @show length(debug_dupe)
     serialize("debug_roots.dat", debug_roots)
