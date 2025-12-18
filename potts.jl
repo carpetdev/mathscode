@@ -268,22 +268,52 @@ function hubbard(P::Polynomial; ε=1e-10, R=3, rootcount=degree(P))
     return roots, nonconv, debug_roots, debug_dupe, debug_nonconv
 end
 
-function newton_map(z, p, n)
-    z1 = z[1] + im * z[2]
-    dz1 = newton_f(z1, p[1]) / newton_df(z1, p[1])
-    z1 = z1 - dz1
-    return SVector(real(z1), imag(z1))
-end
-part = copy(parts[6])
-newton_f(x, p) = part(x)
-newton_df(x, p) = derivative(part)(x)
+# function newton_map(z, p, n)
+#     z1 = z[1] + im * z[2]
+#     dz1 = newton_f(z1, p[1]) / newton_df(z1, p[1])
+#     z1 = z1 - dz1
+#     return SVector(real(z1), imag(z1))
+# end
+# part = copy(parts[6])
+# newton_f(x, p) = part(x)
+# newton_df(x, p) = derivative(part)(x)
 
-ds = DiscreteDynamicalSystem(newton_map, [0.1, 0.2], [3.0])
-xg = yg = range(-2.5, 2.5; length=400)
-grid = (xg, yg)
-# Use non-sparse for using `basins_of_attraction`
-mapper_newton = AttractorsViaRecurrences(ds, grid;
-    sparse=false, consecutive_lost_steps=1000
-)
-basins, attractors = basins_of_attraction(mapper_newton; show_progress=false)
-heatmap_basins_attractors(grid, basins, attractors; markers=Dict(i => :circle for i in 1:length(attractors)))
+# ds = DiscreteDynamicalSystem(newton_map, [0.1, 0.2], [3.0])
+# xg = yg = range(-2.5, 2.5; length=400)
+# grid = (xg, yg)
+# # Use non-sparse for using `basins_of_attraction`
+# mapper_newton = AttractorsViaRecurrences(ds, grid;
+#     sparse=false, consecutive_lost_steps=1000
+# )
+# basins, attractors = basins_of_attraction(mapper_newton; show_progress=false)
+# heatmap_basins_attractors(grid, basins, attractors; markers=Dict(i => :circle for i in 1:length(attractors)))
+
+const symmetry_classes::List{List{Tuple{Bool}}} = []
+
+function smul(S::Matrix{Polynomial{Int,:x}}, T::Matrix{Polynomial{Int,:x}}, n::Int)
+    @assert n, 2^n == size(S) == size(T)
+
+    return
+end
+
+function spotts(n)
+    Ω = Iterators.product(Iterators.repeated((false, true), n)...)
+    T₀ = zeros(Polynomial{Int,:x}, 2^n, 2^n)
+
+    for (i, Ωᵢ) ∈ zip(1:2^n, Ω),
+        (j, Ωₒ) ∈ zip(1:2^n, Ω)
+
+        p = 0
+
+        for r in 1:n
+            p += Int(Ωᵢ[r] == Ωₒ[r])
+            p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
+        end
+
+        T₀[i, j] = Polynomial(1, p)
+    end
+
+    partition = tr(T₀^n)
+
+    return partition
+end
