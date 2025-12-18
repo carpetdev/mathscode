@@ -1,3 +1,11 @@
 {
-  "python.analysis.ignore": ["*"]
+  "python.analysis.ignore": ["*"],
+  "terminal.integrated.commandsToSkipShell": ["-language-julia.interrupt"],
+  "[julia]": {
+    "editor.quickSuggestions": {
+      "strings": "off",
+      "comments": "off",
+      "other": "off"
+    }
+  }
 }

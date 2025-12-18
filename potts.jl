@@ -6,12 +6,13 @@ using ProgressLogging
 using Random
 using Attractors
 using CairoMakie
+using JLD2
 
 # Alternative root finders
 import PolynomialRoots
 import AMRVW
 
-default(aspect_ratio=:equal, markersize=3, legend=false)
+Plots.default(aspect_ratio=:equal, markersize=3, legend=false)
 
 const parts = deserialize("parts.dat")
 
@@ -291,7 +292,7 @@ end
 const symmetry_classes::List{List{Tuple{Bool}}} = []
 
 function smul(S::Matrix{Polynomial{Int,:x}}, T::Matrix{Polynomial{Int,:x}}, n::Int)
-    @assert n, 2^n == size(S) == size(T)
+    @assert length(symmetry_classes[n]), 2^n == size(S) == size(T)
 
     return
 end
@@ -316,4 +317,30 @@ function spotts(n)
     partition = tr(T₀^n)
 
     return partition
+end
+
+function calculate_symmetry_classes(n::Int)
+    Ω = Iterators.product(Iterators.repeated((false, true), n)...)
+    classes::List{NTuple{n,Bool}} = []
+    seen_configs = Set{NTuple{n,Bool}}()
+    for config in Ω
+        if config in seen_configs
+            continue
+        end
+        push!(classes, [config])
+        push!(seen_classes, config)
+        D₂ₙ = Matrix{Function}(undef, s, r)
+        D₂ₙ[1, :] = (t -> circshift(t, r - 1) for r in 1:n)
+        D₂ₙ[2, :] = (t -> reverse(circshift(t, r - 1)) for r in 1:n)
+
+        for s in 1:2, r in 1:n
+            config′ = D₂ₙ[s, r](config)
+            if config′ in seen_configs
+                continue
+            end
+            push!(classes[end], config′)
+            push!(seen_classes, config′)
+        end
+    end
+    @save "potts.jld2"
 end
