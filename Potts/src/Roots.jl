@@ -1,89 +1,16 @@
+module Roots
+
 using Polynomials
 using Plots
-using LinearAlgebra: tr
-using Serialization
 using ProgressLogging
 using Random
 using Attractors
 using CairoMakie
-using JLD2
 
-# Alternative root finders
 import PolynomialRoots
 import AMRVW
 
 Plots.default(aspect_ratio=:equal, markersize=3, legend=false)
-
-const parts = deserialize("parts.dat")
-
-# struct TransferMatrix <: AbstractMatrix{Tuple{Int}}
-#     matrix::Matrix{Tuple{Int}}
-
-#     Base.zero(::Type{Tuple{Int}}) = (0,)
-
-#     function TransferMatrix(n::Int)
-#         new(zeros(Tuple{Int}, n, n))
-#     end
-
-#     Base.size(T::TransferMatrix) = 2
-# end
-
-function potts(n)
-    Ω = Iterators.product(Iterators.repeated((false, true), n)...)
-    T₀ = zeros(Polynomial{Int,:x}, 2^n, 2^n)
-    # T₁ = zeros(typeof(x), 2^n, 2^n)
-
-    for (i, Ωᵢ) ∈ zip(1:2^n, Ω),
-        (j, Ωₒ) ∈ zip(1:2^n, Ω)
-
-        # println(Ωᵢ)
-        # println(Ωₒ)
-
-        p = 0
-        q = 0
-
-        for r in 1:n
-            p += Int(Ωᵢ[r] == Ωₒ[r])
-            p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
-            # q += Int(Ωₒ[r] == Ωₒ[mod1(r + 1, n)])
-            # if r != n
-            #     p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
-            #     p += Int(Ωₒ[r] == Ωₒ[mod1(r + 1, n)])
-            # end
-        end
-
-        # println(p)
-        # q += p
-
-        T₀[i, j] = Polynomial(1, p)
-        # T₁[i, j] = x^q
-    end
-
-    # configs = Iterators.product(Iterators.repeated((false, true), n^2)...)
-    # real_partition = 0
-    # for config ∈ configs
-    #     p = 0
-    #     config = reshape(collect(config), n, n)
-    #     for i ∈ 1:n, j ∈ 1:n
-    #         p += Int(config[i, j] == config[mod1(i + 1, n), j])
-    #         p += Int(config[i, j] == config[i, mod1(j + 1, n)])
-    #     end
-    #     real_partition += x^p
-    # end
-    # println(real_partition)
-
-    # println(sum(T₀))
-    # display(T₀)
-
-    partition = tr(T₀^n)
-    # println(partition)
-    # # partition = real_partition
-    # # println(log(2, sum(partition)))
-    # partition_roots = roots(partition)
-    # display(scatter(partition_roots, aspect_ratio=:equal))
-
-    return partition
-end
 
 function bairstow(P::Polynomial)
     P₀ = P
@@ -269,6 +196,7 @@ function hubbard(P::Polynomial; ε=1e-10, R=3, rootcount=degree(P))
     return roots, nonconv, debug_roots, debug_dupe, debug_nonconv
 end
 
+#region basins
 # function newton_map(z, p, n)
 #     z1 = z[1] + im * z[2]
 #     dz1 = newton_f(z1, p[1]) / newton_df(z1, p[1])
@@ -288,59 +216,6 @@ end
 # )
 # basins, attractors = basins_of_attraction(mapper_newton; show_progress=false)
 # heatmap_basins_attractors(grid, basins, attractors; markers=Dict(i => :circle for i in 1:length(attractors)))
+#endregion
 
-const symmetry_classes::List{List{Tuple{Bool}}} = []
-
-function smul(S::Matrix{Polynomial{Int,:x}}, T::Matrix{Polynomial{Int,:x}}, n::Int)
-    @assert length(symmetry_classes[n]), 2^n == size(S) == size(T)
-
-    return
-end
-
-function spotts(n)
-    Ω = Iterators.product(Iterators.repeated((false, true), n)...)
-    T₀ = zeros(Polynomial{Int,:x}, 2^n, 2^n)
-
-    for (i, Ωᵢ) ∈ zip(1:2^n, Ω),
-        (j, Ωₒ) ∈ zip(1:2^n, Ω)
-
-        p = 0
-
-        for r in 1:n
-            p += Int(Ωᵢ[r] == Ωₒ[r])
-            p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
-        end
-
-        T₀[i, j] = Polynomial(1, p)
-    end
-
-    partition = tr(T₀^n)
-
-    return partition
-end
-
-function calculate_symmetry_classes(n::Int)
-    Ω = Iterators.product(Iterators.repeated((false, true), n)...)
-    classes::List{NTuple{n,Bool}} = []
-    seen_configs = Set{NTuple{n,Bool}}()
-    for config in Ω
-        if config in seen_configs
-            continue
-        end
-        push!(classes, [config])
-        push!(seen_classes, config)
-        D₂ₙ = Matrix{Function}(undef, s, r)
-        D₂ₙ[1, :] = (t -> circshift(t, r - 1) for r in 1:n)
-        D₂ₙ[2, :] = (t -> reverse(circshift(t, r - 1)) for r in 1:n)
-
-        for s in 1:2, r in 1:n
-            config′ = D₂ₙ[s, r](config)
-            if config′ in seen_configs
-                continue
-            end
-            push!(classes[end], config′)
-            push!(seen_classes, config′)
-        end
-    end
-    @save "potts.jld2"
 end
