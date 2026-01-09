@@ -3,10 +3,10 @@ module Potts
 export Partition, Roots, Save, Load
 
 using FromFile
-@from "Partition.jl" import Partition
-@from "Roots.jl" import Roots
-@from "Save.jl" import Save
-@from "Load.jl" import Load
+@from "Partition.jl" using Partition
+@from "Roots.jl" using Roots
+@from "Save.jl" using Save
+@from "Load.jl" using Load
 
 # struct TransferMatrix <: AbstractMatrix{Tuple{Int}}
 #     matrix::Matrix{Tuple{Int}}
