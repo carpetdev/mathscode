@@ -68,7 +68,7 @@ end
 function calculate_symmetry_classes(n::Int)
     Ω = Iterators.product(Iterators.repeated((false, true), n)...)
     classes = Vector{Vector{NTuple{2,Function}}}() # List of lists of a tuple of symmetry and inverse
-    # reps = Vector{NTuple{n,Bool}}()
+    reps = Vector{NTuple{n,Bool}}()
     seen_configs = Set{NTuple{n,Bool}}()
     config_by_index = Bijection{Int,NTuple{n,Bool}}()
     index = 1
@@ -78,7 +78,7 @@ function calculate_symmetry_classes(n::Int)
             continue
         end
         push!(classes, [(identity, identity)])
-        # push!(reps, config)
+        push!(reps, config)
         push!(seen_configs, config)
         config_by_index[index] = config
         index += 1
@@ -99,41 +99,64 @@ function calculate_symmetry_classes(n::Int)
             index += 1
         end
     end
-    return classes, config_by_index
-    # return classes, reps, config_by_index
+    @assert sum(length(class) for class in classes) == 2^n
+    return classes, reps, config_by_index
 end
 
 function smul(S::Matrix{Polynomial{BigInt}}, T::Matrix{Polynomial{BigInt}}, n::Int)
-    # classes, reps, config_by_index = Load.symmetry_classes[n]
-    classes, config_by_index = calculate_symmetry_classes(n)
-    class_enum = [(i, j) for i in 1:length(classes) for j in 1:length(classes[i])]
+    classes, _, config_by_index = Load.symmetry_classes[n]
+    class_enum = [(c, d) for c in 1:length(classes) for d in 1:length(classes[c])]
     @assert (length(classes), 2^n) == size(S) == size(T)
     out = zeros(Polynomial{BigInt}, length(classes), 2^n)
     for i in 1:length(classes), j in 1:2^n, k in 1:2^n
-        out[i, j] += S[i, k] * T[rep_index(k), config_by_index(classes[2]())]
+        c, d = class_enum[k]
+        out[i, j] += S[i, k] * T[c, config_by_index(classes[c][d][2](config_by_index[j]))]
     end
-    return
+    return out
 end
 
 function spart(n)
-    Ω = Iterators.product(Iterators.repeated((false, true), n)...)
-    T₀ = zeros(Polynomial{BigInt}, 2^n, 2^n)
+    classes, reps, _ = Load.symmetry_classes[n]
+    class_enum = [(c, d) for c in 1:length(classes) for d in 1:length(classes[c])]
+    T = zeros(Polynomial{BigInt}, length(classes), 2^n)
 
-    for (i, Ωᵢ) in zip(1:2^n, Ω),
-        (j, Ωₒ) in zip(1:2^n, Ω)
+    for (i, Ωᵢ) in zip(1:length(classes), reps),
+        (j, (sigma, _)) in zip(1:2^n, Iterators.flatten(classes))
 
+        Ωₒ = sigma(reps[class_enum[j][1]])
         p = 0
-
         for r in 1:n
             p += Int(Ωᵢ[r] == Ωₒ[r])
             p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
         end
-
-        T₀[i, j] = Polynomial(1, p)
+        T[i, j] = Polynomial(1, p)
     end
 
-    partition = tr(T₀^n)
+    m = n
+    if m & 1 == 1
+        Tⁿ = T
+    else
+        Tⁿ = zeros(Polynomial{BigInt}, length(classes), 2^n)
+        rep_index = 1
+        for (i, class) in enumerate(classes)
+            Tⁿ[i, rep_index] = 1
+            rep_index += length(class)
+        end
+    end
+    while m > 0
+        m >>= 1
+        T = smul(T, T, n)
+        if m & 1 == 1
+            Tⁿ = smul(Tⁿ, T, n)
+        end
+    end
 
+    partition = 0
+    rep_index = 1
+    for (i, class) in enumerate(classes)
+        partition += length(class) * Tⁿ[i, rep_index]
+        rep_index += length(class)
+    end
     return partition
 end
 
