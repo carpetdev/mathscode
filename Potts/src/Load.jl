@@ -1,20 +1,23 @@
 module Load
 
+export Symmetry
+
 using Polynomials
 using JSON
 using Bijections
 
-struct Part
-    n::Int
-    polynomial::Polynomial{BigInt}
+struct Symmetry{n}
+    classes::Vector{Vector{NTuple{3,Int}}}
+    reps::Vector{NTuple{n,Bool}} # Can also just find this from ordered_configs and classes together
+    ordered_configs::Vector{NTuple{n,Bool}}
 end
 
-struct Symmetry
-    classes::Vector{Vector{NTuple{2,NTuple{3,Int}}}}
-    reps::Vector{NTuple{n,Bool}}
-    config_by_index::Bijection{Int,NTuple{n,Bool}}
+function part(n::Int)
+    return JSON.parsefile("data/parts/2_$(n)x$(n).json", Polynomial{BigInt})
 end
 
-const parts = JSON.parsefile("data/parts/2_nxn.json", Vector{Part})
+function symmetry_class(n::Int)
+    return JSON.parsefile("data/symmetry/2_$(n)x$(n).json", Symmetry{n})
+end
 
 end

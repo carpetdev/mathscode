@@ -7,22 +7,14 @@ using FromFile
 using JSON
 
 function parts(n)
-    parts = Load.parts
-    part = Partition.ising_part_periodic(n)
-    if n > length(parts) + 1
-        JSON.json("data/parts/2_$(n)x$(n).json", part)
-        return
-    elseif n == length(parts) + 1
-        push!(parts, part)
-    else
-        parts[n] = part
-    end
-    JSON.json("data/parts/2_nxn.json", parts)
+    part = Partition.spart(n)
+    JSON.json("data/parts/2_$(n)x$(n).json", part)
     return
 end
 
 function classes(n)
-    classes, reps, config_by_index = Partition.calculate_symmetry_classes(n)
+    symmetry = Symmetry{n}(Partition.calculate_symmetry_classes(n)...)
+    JSON.json("data/symmetry/2_$(n)x$(n).json", symmetry)
     return
 end
 

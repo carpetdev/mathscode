@@ -1,0 +1,10 @@
+{
+  "classes": [
+    [
+      [1, 1, 1],
+      [2, 1, 1]
+    ]
+  ],
+  "reps": [[false]],
+  "ordered_configs": [[false], [true]]
+}
