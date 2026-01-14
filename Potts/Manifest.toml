@@ -1695,7 +1695,7 @@ uuid = "85a6dd25-e78a-55b7-8502-1745935b8125"
 version = "0.2.4"
 
 [[deps.Potts]]
-deps = ["AMRVW", "Attractors", "Bijections", "CairoMakie", "FromFile", "JSON", "LinearAlgebra", "Plots", "PolynomialRoots", "Polynomials", "ProgressLogging", "Random"]
+deps = ["AMRVW", "Attractors", "Bijections", "CairoMakie", "FromFile", "JSON", "LinearAlgebra", "OrderedCollections", "Plots", "PolynomialRoots", "Polynomials", "ProgressLogging", "Random"]
 path = "."
 uuid = "6add209f-8b80-4b6d-bc64-86d6ecc52c89"
 version = "0.1.0"

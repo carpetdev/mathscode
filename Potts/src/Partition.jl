@@ -67,6 +67,15 @@ function part(n::Int) # ising_part_periodic
     return partition
 end
 
+function dihedral(n::Int)
+    SD = Array{Function}(undef, 2, 2, n)
+    SD[1, 1, :] = [t -> circshift(t, r - 1) for r in 1:n]
+    SD[2, 1, :] = [t -> .!circshift(t, r - 1) for r in 1:n]
+    SD[1, 2, :] = [t -> reverse(circshift(t, r - 1)) for r in 1:n]
+    SD[2, 2, :] = [t -> .!reverse(circshift(t, r - 1)) for r in 1:n]
+    return SD
+end
+
 function calculate_symmetry_classes(n::Int)
     Ω = Iterators.product(Iterators.repeated((false, true), n)...)
     classes = Vector{Vector{NTuple{3,Int}}}() # List of lists of SD index for symmetry
@@ -80,12 +89,8 @@ function calculate_symmetry_classes(n::Int)
         push!(classes, [((1, 1, 1))])
         push!(reps, config)
         push!(seen_configs, config)
-        SD = Array{Function}(undef, 2, 2, n)
-        SD[1, 1, :] = [t -> circshift(t, r - 1) for r in 1:n]
-        SD[2, 1, :] = [t -> .!circshift(t, r - 1) for r in 1:n]
-        SD[1, 2, :] = [t -> reverse(circshift(t, r - 1)) for r in 1:n]
-        SD[2, 2, :] = [t -> .!reverse(circshift(t, r - 1)) for r in 1:n]
 
+        SD = dihedral(n)
         for f in 1:2, s in 1:2, r in 1:n
             config′ = SD[f, s, r](config)
             if config′ in seen_configs
@@ -104,11 +109,15 @@ function spart(n::Int)
     class_enum = [(c, d) for c in 1:length(classes) for d in 1:length(classes[c])]
     config_by_index = Bijection([i => v for (i, v) in enumerate(ordered_configs)])
     T = zeros(Polynomial{BigInt}, length(classes), 2^n)
-    SD = Array{Function}(undef, 2, 2, n)
-    SD[1, 1, :] = [t -> circshift(t, r - 1) for r in 1:n]
-    SD[2, 1, :] = [t -> .!circshift(t, r - 1) for r in 1:n]
-    SD[1, 2, :] = [t -> reverse(circshift(t, r - 1)) for r in 1:n]
-    SD[2, 2, :] = [t -> .!reverse(circshift(t, r - 1)) for r in 1:n]
+
+    SD = dihedral(n)
+    function invert((f, s, r)::NTuple{3,Int})
+        if s == 1
+            return (f, s, mod1(2 - r, n))
+        elseif s == 2
+            return (f, s, r)
+        end
+    end
 
     for (i, Ωᵢ) in zip(1:length(classes), reps),
         (j, sigma) in zip(1:2^n, Iterators.flatten(classes))
@@ -139,13 +148,15 @@ function spart(n::Int)
         class_enum = [(c, d) for c in 1:length(classes) for d in 1:length(classes[c])]
         @assert (length(classes), 2^n) == size(S) == size(T)
         out = zeros(Polynomial{BigInt}, length(classes), 2^n)
-        for i in 1:length(classes), j in 1:2^n, k in 1:2^n
-            c, d = class_enum[k]
-            f, s, r = classes[c][d]
-            out[i, j] += S[i, k] * T[c, config_by_index(SD[f, s, mod1(2 - r, n)](config_by_index[j]))]
+        Threads.@threads for (i, j) in collect(Iterators.product(1:length(classes), 1:2^n))
+            for k in 1:2^n
+                c, d = class_enum[k]
+                out[i, j] += S[i, k] * T[c, config_by_index(SD[invert(classes[c][d])...](config_by_index[j]))]
+            end
         end
         return out
     end
+
     while m > 0
         m >>= 1
         T = smul(T, T, n)

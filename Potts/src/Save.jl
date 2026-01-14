@@ -6,7 +6,7 @@ using FromFile
 
 using JSON
 
-function parts(n)
+function part(n)
     part = Partition.spart(n)
     JSON.json("data/parts/2_$(n)x$(n).json", part)
     return

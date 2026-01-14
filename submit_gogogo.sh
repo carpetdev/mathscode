@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=simple_job   # Job name
-#SBATCH --time=01:00:00         # Request runtime (hh:mm:ss)
-#SBATCH --mem=1G                # Request memory
+#SBATCH --job-name=potts12   # Job name
+#SBATCH --time=10:00:00         # Request runtime (hh:mm:ss)
+#SBATCH --mem=16G                # Request memory
 #SBATCH --ntasks=1              # Number of tasks
-#SBATCH --cpus-per-task=1       # Number of cores per task
+#SBATCH --cpus-per-task=100       # Number of cores per task
 
 # Load any necessary modules
-module load <module_name>
+module load julia
 
 # Execute your application
-./example.bin
+julia -t 100 gogogo.jl

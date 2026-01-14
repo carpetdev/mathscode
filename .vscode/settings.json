@@ -1,10 +1,6 @@
 {
-  "python.analysis.ignore": [
-    "*"
-  ],
-  "terminal.integrated.commandsToSkipShell": [
-    "-language-julia.interrupt"
-  ],
+  "python.analysis.ignore": ["*"],
+  "terminal.integrated.commandsToSkipShell": ["-language-julia.interrupt"],
   "[julia]": {
     "editor.quickSuggestions": {
       "strings": "off",
@@ -13,4 +9,5 @@
     }
   },
   "julia.lint.iter": false,
+  "julia.additionalArgs": ["-t", "20"]
 }
