@@ -11,7 +11,7 @@ using OrderedCollections
 function part(n::Int) # ising_part_periodic
     # Ω = Iterators.product(Iterators.repeated((false, true), n)...)
     Ω = Load.symmetry_class(n).ordered_configs
-    T₀ = zeros(Polynomial{BigInt}, 2^n, 2^n)
+    T₀ = zeros(Polynomial{Int128}, 2^n, 2^n)
     # T₁ = zeros(typeof(x), 2^n, 2^n)
 
     for (i, Ωᵢ) in zip(1:2^n, Ω),
@@ -108,7 +108,7 @@ function spart(n::Int)
     (; classes, reps, ordered_configs) = Load.symmetry_class(n)
     class_enum = [(c, d) for c in 1:length(classes) for d in 1:length(classes[c])]
     config_by_index = Bijection([i => v for (i, v) in enumerate(ordered_configs)])
-    T = zeros(Polynomial{BigInt}, length(classes), 2^n)
+    T = zeros(Polynomial{Int128}, length(classes), 2^n)
 
     SD = dihedral(n)
     function invert((f, s, r)::NTuple{3,Int})
@@ -136,7 +136,7 @@ function spart(n::Int)
     if m & 1 == 1
         Tⁿ = T
     else
-        Tⁿ = zeros(Polynomial{BigInt}, length(classes), 2^n)
+        Tⁿ = zeros(Polynomial{Int128}, length(classes), 2^n)
         rep_index = 1
         for (i, class) in enumerate(classes)
             Tⁿ[i, rep_index] = 1
@@ -144,10 +144,10 @@ function spart(n::Int)
         end
     end
 
-    function smul(S::Matrix{Polynomial{BigInt}}, T::Matrix{Polynomial{BigInt}}, n::Int)
+    function smul(S::Matrix{Polynomial{Int128}}, T::Matrix{Polynomial{Int128}}, n::Int)
         class_enum = [(c, d) for c in 1:length(classes) for d in 1:length(classes[c])]
         @assert (length(classes), 2^n) == size(S) == size(T)
-        out = zeros(Polynomial{BigInt}, length(classes), 2^n)
+        out = zeros(Polynomial{Int128}, length(classes), 2^n)
         Threads.@threads for (i, j) in collect(Iterators.product(1:length(classes), 1:2^n))
             for k in 1:2^n
                 c, d = class_enum[k]
