@@ -9,5 +9,5 @@
     }
   },
   "julia.lint.iter": false,
-  "julia.additionalArgs": ["-t", "20"]
+  "julia.NumThreads": "auto"
 }
