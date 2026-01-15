@@ -5,6 +5,6 @@ Pkg.instantiate()
 
 using Potts
 
-for n in 5:12
+for n in 7:12
     Save.part(n)
 end
