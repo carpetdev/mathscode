@@ -9,7 +9,7 @@ using Bijections
 using OrderedCollections
 using BitIntegers
 
-const Polynomial = Polynomial{UInt256}
+const Polynomial = Polynomial{UInt256} # `Polynomials.SparsePolynomial(c,d)` and `Polynomials.SparseVectorPolynomials(c,d)` don't work (the first stack overflows and the second assumes `d=1`). The first can be fixed with `Polynomials.SparsePolynomial([c],d)`.
 
 function part(n::Int) # ising_part_periodic
     # Ω = Iterators.product(Iterators.repeated((false, true), n)...)
@@ -131,7 +131,7 @@ function spart(n::Int)
             p += Int(Ωᵢ[r] == Ωₒ[r])
             p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
         end
-        T[i, j] = Polynomial(1, p)
+        T[i, j] = Polynomial([1], p)
     end
     # return T
 
@@ -148,9 +148,8 @@ function spart(n::Int)
     end
 
     function smul(S::Matrix{Polynomial}, T::Matrix{Polynomial}, n::Int)
-        class_enum = [(c, d) for c in 1:length(classes) for d in 1:length(classes[c])]
         @assert (length(classes), 2^n) == size(S) == size(T)
-        out = zeros(Polynomial, length(classes), 2^n)
+        out = zeros(Polynomial, length(classes), 2^n) # What if we don't specify type
         Threads.@threads for (i, j) in collect(Iterators.product(1:length(classes), 1:2^n))
             for k in 1:2^n
                 c, d = class_enum[k]
@@ -175,6 +174,51 @@ function spart(n::Int)
         partition += length(class) * Tⁿ[i, rep_index]
         rep_index += length(class)
     end
+    return partition
+end
+
+function spart′(n::Int)
+    (; classes, reps) = Load.symmetry_class(n)
+    class_enum = [(c, d) for c in 1:length(classes) for d in 1:length(classes[c])]
+    T = zeros(Polynomial, length(classes), 2^n)
+
+    SD = dihedral(n)
+    function invert((f, s, r)::NTuple{3,Int})
+        if s == 1
+            return (f, s, mod1(2 - r, n))
+        elseif s == 2
+            return (f, s, r)
+        end
+    end
+
+    for (i, Ωᵢ) in zip(1:length(classes), reps),
+        (j, sigma) in zip(1:2^n, Iterators.flatten(classes))
+
+        Ωₒ = SD[sigma...](reps[class_enum[j][1]])
+        p = 0
+        for r in 1:n
+            p += Int(Ωᵢ[r] == Ωₒ[r])
+            p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
+        end
+        T[i, j] = Polynomial([1], p)
+    end
+
+    R = sum(T, dims=2)
+    # display(Polynomials.Polynomial{BigInt}.(T))
+
+    for i in 1:n-2
+        println(i)
+        R_new = zeros(Polynomial, length(classes))
+        Threads.@threads for i in 1:length(classes)
+            for k in 1:2^n
+                c, _ = class_enum[k]
+                R_new[i] += T[i, k] * R[c] # Try just making R a vector with repeats so you can do matrix-vector mulitiplication
+            end
+        end
+        R = R_new
+    end
+
+    partition = sum(R .* (length(class) for class in classes))
     return partition
 end
 
