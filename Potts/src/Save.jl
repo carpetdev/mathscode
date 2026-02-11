@@ -12,6 +12,12 @@ function part(n)
     return
 end
 
+function part′(n)
+    part = Partition.spart′(n)
+    JSON.json("data/parts/2_$(n)x$(n)'.json", part)
+    return
+end
+
 function classes(n)
     symmetry = Symmetry{n}(Partition.calculate_symmetry_classes(n)...)
     JSON.json("data/symmetry/2_$(n)x$(n).json", symmetry)

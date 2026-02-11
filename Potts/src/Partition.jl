@@ -206,19 +206,27 @@ function spart′(n::Int)
     R = sum(T, dims=2)
     # display(Polynomials.Polynomial{BigInt}.(T))
 
-    for i in 1:n-2
-        println(i)
-        R_new = zeros(Polynomial, length(classes))
-        Threads.@threads for i in 1:length(classes)
-            for k in 1:2^n
-                c, _ = class_enum[k]
-                R_new[i] += T[i, k] * R[c] # Try just making R a vector with repeats so you can do matrix-vector mulitiplication
-            end
-        end
-        R = R_new
-    end
+    # for i in 1:n-2
+    #     # println(i)
+    #     R_new = zeros(Polynomial, length(classes))
+    #     Threads.@threads for i in 1:length(classes)
+    #         for k in 1:2^n
+    #             c, _ = class_enum[k]
+    #             R_new[i] += T[i, k] * R[c] # Try just making R a vector with repeats so you can do matrix-vector mulitiplication
+    #         end
+    #     end
+    #     R = R_new
+    # end
+    # partition = sum(R .* (length(class) for class in classes))
 
-    partition = sum(R .* (length(class) for class in classes))
+    #region matrix-vector multiplication alternative
+    for _ in 1:n-2
+        R = reduce(vcat, fill.(R, (length(class) for class in classes)))
+        R = T * R
+    end
+    partition = sum(R)
+    #endregion
+
     return partition
 end
 

@@ -16,6 +16,10 @@ function part(n::Int)
     return JSON.parsefile("data/parts/2_$(n)x$(n).json", Polynomial{BigInt})
 end
 
+function part′(n::Int)
+    return JSON.parsefile("data/parts/2_$(n)x$(n)'.json", Polynomial{BigInt})
+end
+
 function symmetry_class(n::Int)
     return JSON.parsefile("data/symmetry/2_$(n)x$(n).json", Symmetry{n})
 end
