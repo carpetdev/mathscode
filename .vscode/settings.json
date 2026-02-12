@@ -9,6 +9,7 @@
     }
   },
   "julia.lint.iter": false,
+  "julia.lint.call": false,
   "julia.NumThreads": "auto",
   "julia.additionalArgs": ["--project=Potts"]
 }
