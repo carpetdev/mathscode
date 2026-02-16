@@ -11,25 +11,28 @@ using BitIntegers
 
 const Polynomial = Polynomial{UInt256} # `Polynomials.SparsePolynomial(c,d)` and `Polynomials.SparseVectorPolynomials(c,d)` don't work (the first stack overflows and the second assumes `d=1`). The first can be fixed with `Polynomials.SparsePolynomial([c],d)`.
 
-function part(n::Int) # ising_part_periodic
-    # Ω = Iterators.product(Iterators.repeated((false, true), n)...)
-    Ω = Load.symmetry_class(n).ordered_configs
-    T₀ = zeros(Polynomial, 2^n, 2^n)
+function part(q::Int, n::Int) # ising_part_periodic
+    if q == 2
+        Ω = Load.symmetry_class(n).ordered_configs
+    else
+        Ω = Iterators.product(Iterators.repeated(1:q, n)...)
+    end
+    T₀ = zeros(Polynomial, q^n, q^n)
     # T₁ = zeros(typeof(x), 2^n, 2^n)
 
-    for (i, Ωᵢ) in zip(1:2^n, Ω),
-        (j, Ωₒ) in zip(1:2^n, Ω)
+    for (i, Ωᵢ) in zip(1:q^n, Ω),
+        (j, Ωₒ) in zip(1:q^n, Ω)
 
         # println(Ωᵢ)
         # println(Ωₒ)
 
         p = 0
-        # q = 0
+        # s = 0
 
         for r in 1:n
             p += Int(Ωᵢ[r] == Ωₒ[r])
             p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
-            # q += Int(Ωₒ[r] == Ωₒ[mod1(r + 1, n)])
+            # s += Int(Ωₒ[r] == Ωₒ[mod1(r + 1, n)])
             # if r != n
             #     p += Int(Ωᵢ[r] == Ωᵢ[mod1(r + 1, n)])
             #     p += Int(Ωₒ[r] == Ωₒ[mod1(r + 1, n)])
@@ -37,33 +40,14 @@ function part(n::Int) # ising_part_periodic
         end
 
         # println(p)
-        # q += p
+        # s += p
 
         T₀[i, j] = Polynomial([1], p)
-        # T₁[i, j] = x^q
+        # T₁[i, j] = x^s
     end
 
-    # configs = Iterators.product(Iterators.repeated((false, true), n^2)...)
-    # real_partition = 0
-    # for config in configs
-    #     p = 0
-    #     config = reshape(collect(config), n, n)
-    #     for i in 1:n, j in 1:n
-    #         p += Int(config[i, j] == config[mod1(i + 1, n), j])
-    #         p += Int(config[i, j] == config[i, mod1(j + 1, n)])
-    #     end
-    #     real_partition += x^p
-    # end
-    # println(real_partition)
-
-    # println(sum(T₀))
-    # display(T₀)
-
-    # return T₀
     partition = tr(T₀^n)
     # println(partition)
-    # # partition = real_partition
-    # # println(log(2, sum(partition)))
     # partition_roots = roots(partition)
     # display(scatter(partition_roots, aspect_ratio=:equal))
 
